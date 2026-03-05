@@ -57,14 +57,13 @@ export default async function handler(req, res) {
       return airing >= today && airing < tomorrow
     })
     .map(e => ({
-      title: e.media.title.english || e.media.title.romaji,
-      episode: e.media.nextAiringEpisode.episode,
-      poster: e.media.coverImage.medium,
-      time: new Date(
-        e.media.nextAiringEpisode.airingAt * 1000
-      ).toLocaleTimeString([], { hour: '2-digit', minute:'2-digit'})
-    }))
-
+  id: e.media.id,
+  title: e.media.title.english || e.media.title.romaji,
+  episode: e.media.nextAiringEpisode.episode,
+  airingAt: e.media.nextAiringEpisode.airingAt,
+  coverImage: e.media.coverImage.medium
+}))
+  
   res.setHeader("Cache-Control", "s-maxage=3600")
 
   res.status(200).json(todayEpisodes)
