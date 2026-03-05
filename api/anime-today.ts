@@ -8,9 +8,10 @@ export default async function handler(req, res) {
       lists {
         entries {
           media {
+            id
             title {
-              romaji
               english
+              romaji
             }
             coverImage {
               medium
@@ -36,35 +37,48 @@ export default async function handler(req, res) {
     })
   })
 
-  const data = await response.json()
+  const json = await response.json()
 
-  const entries = data.data.MediaListCollection.lists.flatMap(
-    (list) => list.entries
-  )
+  const entries =
+    json.data.MediaListCollection.lists.flatMap(
+      list => list.entries
+    )
 
-  const today = new Date()
-  today.setHours(0,0,0,0)
+  const now = new Date()
 
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
+  const startOfDay = new Date(now)
+  startOfDay.setHours(0,0,0,0)
 
-  const todayEpisodes = entries
+  const endOfDay = new Date(now)
+  endOfDay.setHours(23,59,59,999)
+
+  const startUnix = Math.floor(startOfDay.getTime()/1000)
+  const endUnix = Math.floor(endOfDay.getTime()/1000)
+
+  let episodes = entries
     .filter(e => e.media.nextAiringEpisode)
     .filter(e => {
-      const airing = new Date(
-        e.media.nextAiringEpisode.airingAt * 1000
-      )
-      return airing >= today && airing < tomorrow
+      const t = e.media.nextAiringEpisode.airingAt
+      return t >= startUnix && t <= endUnix
     })
     .map(e => ({
-  id: e.media.id,
-  title: e.media.title.english || e.media.title.romaji,
-  episode: e.media.nextAiringEpisode.episode,
-  airingAt: e.media.nextAiringEpisode.airingAt,
-  coverImage: e.media.coverImage.medium
-}))
-  
+      title: e.media.title.english || e.media.title.romaji,
+      episode: e.media.nextAiringEpisode.episode,
+      airingAt: e.media.nextAiringEpisode.airingAt,
+      coverImage: e.media.coverImage.medium
+    }))
+
+  // remove duplicates
+  episodes = episodes.filter(
+    (item, index, self) =>
+      index === self.findIndex(
+        t =>
+          t.title === item.title &&
+          t.episode === item.episode
+      )
+  )
+
   res.setHeader("Cache-Control", "s-maxage=3600")
 
-  res.status(200).json(todayEpisodes)
+  res.status(200).json(episodes)
 }
